@@ -15,5 +15,4 @@ database_id = "e5201387-004a-4d93-90a7-751388f3bf91"
 binding = "CACHE"
 id = "9dcf9b1ec38e4b70b7846b3ee5b60391"
 
-[vars]
-ECHO_API_KEY = ""
+# ECHO_API_KEY set via wrangler secret
