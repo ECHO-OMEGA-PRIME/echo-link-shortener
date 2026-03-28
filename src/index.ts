@@ -68,7 +68,7 @@ function parseUA(ua: string): { device: string; browser: string; os: string } {
 }
 
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     if (req.method === 'OPTIONS') return json({ ok: true });
 
     try {
@@ -102,7 +102,7 @@ export default {
           if (!pw) return json({ ok: false, error: 'Password required', password_required: true }, 401);
         }
         // Track click async
-        trackClick(env, data.id, data.tid, req);
+        trackClick(env, ctx, data.id, data.tid, req);
         return Response.redirect(data.url, 302);
       }
 
@@ -120,7 +120,7 @@ export default {
 
       // Cache for future requests
       await env.CACHE.put(`link:${slug}`, JSON.stringify({ url: link.destination_url, id: link.id, tid: link.tenant_id, expires: link.expires_at, max_clicks: link.max_clicks, total_clicks: link.total_clicks, password: !!link.password_hash }), { expirationTtl: 3600 });
-      trackClick(env, String(link.id), String(link.tenant_id), req);
+      trackClick(env, ctx, String(link.id), String(link.tenant_id), req);
       return Response.redirect(String(link.destination_url), 302);
     }
 
@@ -417,7 +417,7 @@ export default {
 };
 
 // Async click tracking — doesn't block redirect
-function trackClick(env: Env, linkId: string, tenantId: string, req: Request): void {
+function trackClick(env: Env, ctx: ExecutionContext, linkId: string, tenantId: string, req: Request): void {
   const ip = req.headers.get('CF-Connecting-IP') || '';
   const ua = req.headers.get('User-Agent') || '';
   const referrer = req.headers.get('Referer') || '';
@@ -425,8 +425,8 @@ function trackClick(env: Env, linkId: string, tenantId: string, req: Request): v
   const city = req.headers.get('CF-IPCity') || '';
   const region = req.headers.get('CF-Region') || '';
 
-  // Fire and forget
-  (async () => {
+  // ctx.waitUntil ensures click tracking completes after response
+  ctx.waitUntil((async () => {
     try {
       const ipHash = await hashIP(ip);
       const { device, browser, os } = parseUA(ua);
@@ -445,7 +445,7 @@ function trackClick(env: Env, linkId: string, tenantId: string, req: Request): v
         await env.DB.prepare('UPDATE links SET total_clicks = total_clicks + 1, last_clicked_at = datetime(\'now\') WHERE id = ?').bind(linkId).run();
       }
     } catch { /* silent */ }
-  })();
+  })());
 }
 
 // Simple QR code SVG generator (basic implementation)
