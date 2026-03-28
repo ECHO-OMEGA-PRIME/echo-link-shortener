@@ -69,6 +69,7 @@ export default {
     const method = req.method;
 
     // Health & status — public
+    if (path === '/') return json({ ok: true, service: 'echo-link-shortener', version: '1.0.0' });
     if (path === '/health') return json({ ok: true, service: 'echo-link-shortener', version: '1.0.0' });
     if (path === '/status') {
       const [links, clicks] = await Promise.all([
