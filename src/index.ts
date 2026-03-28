@@ -64,6 +64,7 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     if (req.method === 'OPTIONS') return json({ ok: true });
 
+    try {
     const url = new URL(req.url);
     const path = url.pathname;
     const method = req.method;
@@ -140,7 +141,6 @@ export default {
     const tid = getTenant(req);
     const apiPath = path.slice(4); // strip /api
 
-    try {
       // ── Tenants ──
       if (apiPath === '/tenants' && method === 'POST') {
         const b = await req.json() as Record<string, unknown>;
