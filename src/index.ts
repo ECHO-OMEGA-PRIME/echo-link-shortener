@@ -143,6 +143,7 @@ export default {
 
     // Auth for management API
     if (!path.startsWith('/api/')) return err('Not found', 404);
+    try {
     if (!authOk(req, env)) return err('Unauthorized', 401);
 
     const tid = getTenant(req);
@@ -360,6 +361,13 @@ export default {
       }
 
       return err('Not found', 404);
+
+    } catch (err_caught: unknown) {
+      const msg = err_caught instanceof Error ? err_caught.message : 'Unknown error';
+      const stack = err_caught instanceof Error ? err_caught.stack : undefined;
+      slog('error', 'Unhandled request error', { method: req.method, path: new URL(req.url).pathname, error: msg, stack });
+      return json({ ok: false, error: 'Internal server error', message: msg, path: new URL(req.url).pathname }, 500);
+    }
     } catch (e: unknown) {
       if ((e as Error).message?.includes('JSON')) {
         return err('Invalid JSON body', 400);
