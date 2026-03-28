@@ -141,7 +141,7 @@ export default {
       if (!await rateLimit(env.CACHE, rlKey, 60)) return err('Rate limited', 429);
     }
 
-    // Auth for management API
+    // Auth gate — ALL /api/* endpoints require authentication (POST, PUT, DELETE, GET)
     if (!path.startsWith('/api/')) return err('Not found', 404);
     try {
     if (!authOk(req, env)) return err('Unauthorized', 401);
@@ -231,13 +231,21 @@ export default {
       if (apiPath.match(/^\/links\/[^/]+$/) && method === 'PUT') {
         const lid = apiPath.split('/')[2];
         const b = await req.json() as Record<string, unknown>;
+        // Allowlisted column mapping — never interpolate user-controlled keys into SQL
+        const ALLOWED_TEXT: Record<string, { col: string; max: number }> = {
+          title: { col: 'title', max: 200 }, destination_url: { col: 'destination_url', max: 2000 },
+          og_title: { col: 'og_title', max: 200 }, og_description: { col: 'og_description', max: 500 },
+          og_image: { col: 'og_image', max: 500 }, utm_source: { col: 'utm_source', max: 100 },
+          utm_medium: { col: 'utm_medium', max: 100 }, utm_campaign: { col: 'utm_campaign', max: 100 },
+        };
         const fields: string[] = []; const vals: unknown[] = [];
         for (const [k, v] of Object.entries(b)) {
-          if (['title', 'destination_url', 'og_title', 'og_description', 'og_image', 'utm_source', 'utm_medium', 'utm_campaign'].includes(k)) { fields.push(`${k} = ?`); vals.push(sanitize(String(v), 2000)); }
-          if (k === 'tags') { fields.push('tags = ?'); vals.push(JSON.stringify(v)); }
-          if (k === 'expires_at') { fields.push('expires_at = ?'); vals.push(v ? sanitize(String(v), 30) : null); }
-          if (k === 'max_clicks') { fields.push('max_clicks = ?'); vals.push(v ? Number(v) : null); }
-          if (k === 'archived') { fields.push('archived = ?'); vals.push(v ? 1 : 0); }
+          const textDef = ALLOWED_TEXT[k];
+          if (textDef) { fields.push(`${textDef.col} = ?`); vals.push(sanitize(String(v), textDef.max)); }
+          else if (k === 'tags') { fields.push('tags = ?'); vals.push(JSON.stringify(v)); }
+          else if (k === 'expires_at') { fields.push('expires_at = ?'); vals.push(v ? sanitize(String(v), 30) : null); }
+          else if (k === 'max_clicks') { fields.push('max_clicks = ?'); vals.push(v ? Number(v) : null); }
+          else if (k === 'archived') { fields.push('archived = ?'); vals.push(v ? 1 : 0); }
         }
         if (!fields.length) return err('No fields');
         fields.push('updated_at = datetime(\'now\')');
