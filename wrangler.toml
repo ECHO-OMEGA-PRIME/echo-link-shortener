@@ -1,6 +1,10 @@
 name = "echo-link-shortener"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
+
+[[analytics_engine_datasets]]
+binding = "AE"
+dataset = "echo_metrics"
 compatibility_flags = ["nodejs_compat"]
 
 [triggers]
