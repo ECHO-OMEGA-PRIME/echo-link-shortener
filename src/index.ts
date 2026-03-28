@@ -354,7 +354,11 @@ export default {
 
       return err('Not found', 404);
     } catch (e: unknown) {
-      return err(String((e as Error).message || e), 500);
+      if ((e as Error).message?.includes('JSON')) {
+        return err('Invalid JSON body', 400);
+      }
+      console.error(`[echo-link-shortener] ${(e as Error).message}`);
+      return err('Internal server error', 500);
     }
   },
 
